@@ -1,7 +1,10 @@
+// ===== NAYA CODE BARAYE AttendancePage.tsx =====
+
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import Layout from "@/components/Layout";
+import { ProtectedRoute } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -9,93 +12,57 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CheckCircle, XCircle, Coffee, CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
-import Layout from "@/components/Layout";
-import { ProtectedRoute } from "@/lib/auth";
-import { toast } from "sonner";
-import { useSearchParams } from "react-router-dom";
+import { ar } from "date-fns/locale";
 
-interface Student {
-  id: string;
-  name: string;
-  father_name: string;
-  class_name: string;
-}
+const AttendancePage = () => {
+  const [students, setStudents] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [selectedClass, setSelectedClass] = useState("");
+  const [attendance, setAttendance] = useState({});
+  const [date, setDate] = useState(new Date());
 
-interface AttendanceRecord {
-  student_id: string;
-  status: string;
-}
+  const dateString = format(date, "yyyy-MM-dd");
 
-const Attendance = () => {
-  const [searchParams] = useSearchParams();
-  const filterParam = searchParams.get('filter');
-  
-  const [students, setStudents] = useState<Student[]>([]);
-  const [selectedClass, setSelectedClass] = useState<string>("");
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [attendance, setAttendance] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    fetchClasses();
+  }, []);
 
   useEffect(() => {
     if (selectedClass) {
-      fetchStudents();
+      fetchStudentsAndAttendance();
+    } else {
+      setStudents([]);
     }
-  }, [selectedClass, selectedDate]);
-
-  const fetchStudents = async () => {
-    const { data: studentsData, error: studentsError } = await supabase
-      .from('students')
-      .select('*')
-      .eq('class_name', selectedClass)
-      .order('name');
-
-    if (studentsError) {
-      toast.error("طلباء لوڈ کرنے میں خرابی");
-      return;
-    }
-
-    setStudents(studentsData || []);
-
-    // Fetch attendance for selected date
-    const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    const { data: attendanceData } = await supabase
-      .from('attendance')
-      .select('student_id, status')
-      .eq('date', dateStr);
-
-    const attendanceMap = new Map<string, string>();
-    attendanceData?.forEach((record: AttendanceRecord) => {
-      attendanceMap.set(record.student_id, record.status);
+  }, [selectedClass, date]);
+  
+  const fetchClasses = async () => {
+    const { data } = await supabase.from('students').select('class_name');
+    const uniqueClasses = [...new Set(data.map(c => c.class_name))];
+    setClasses(uniqueClasses);
+  };
+  
+  const fetchStudentsAndAttendance = async () => {
+    const { data: studentData } = await supabase.from("students").select("*").eq('class_name', selectedClass);
+    setStudents(studentData || []);
+    
+    const { data: attendanceData } = await supabase.from("attendance").select("*").eq('date', dateString);
+    const attendanceMap = {};
+    (attendanceData || []).forEach(att => {
+      attendanceMap[att.student_id] = att.status;
     });
     setAttendance(attendanceMap);
   };
-
-  const markAttendance = async (studentId: string, status: string) => {
-    const dateStr = format(selectedDate, 'yyyy-MM-dd');
-    const { error } = await supabase
+  
+  const handleMarkAttendance = async (studentId, status) => {
+    await supabase
       .from('attendance')
-      .upsert({
-        student_id: studentId,
-        date: dateStr,
-        status: status,
-      }, {
-        onConflict: 'student_id,date'
-      });
-
-    if (error) {
-      toast.error("حاضری محفوظ کرنے میں خرابی");
-    } else {
-      setAttendance(new Map(attendance.set(studentId, status)));
-      toast.success("حاضری محفوظ ہو گئی");
-    }
-  };
-
-  const getButtonVariant = (studentId: string, status: string) => {
-    return attendance.get(studentId) === status ? "default" : "outline";
+      .upsert({ id: `${dateString}_${studentId}`, student_id: studentId, date: dateString, status: status }, { onConflict: 'id' });
+    
+    setAttendance(prev => ({...prev, [studentId]: status}));
   };
 
   return (
@@ -103,128 +70,53 @@ const Attendance = () => {
       <Layout>
         <div className="space-y-6">
           <div>
-            <h2 className="text-3xl font-bold mb-2">حاضری</h2>
+            <h2 className="text-3xl font-bold mb-1">حاضری</h2>
+            <p className="text-muted-foreground">طلباء کی روزانہ حاضری منظم کریں</p>
           </div>
+          
+          <div className="bg-card p-4 rounded-lg border space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant={"outline"} className="w-full justify-start text-right font-normal">
+                      <CalendarIcon className="ml-2 h-4 w-4" />
+                      {format(date, "PPP", { locale: ar })}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
+                  </PopoverContent>
+                </Popover>
 
-          <Card className="shadow-card">
-            <CardContent className="p-6">
-              <div className="flex gap-4 flex-wrap">
-                <div className="space-y-2 flex-1 min-w-[240px]">
-                  <label className="text-sm font-medium">تاریخ منتخب کریں</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !selectedDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="ml-2 h-4 w-4" />
-                        {selectedDate ? (
-                          format(selectedDate, "PPP")
-                        ) : (
-                          <span>تاریخ منتخب کریں</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={(date) => date && setSelectedDate(date)}
-                        disabled={(date) => date > new Date()}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <div className="space-y-2 flex-1 min-w-[200px]">
-                  <label className="text-sm font-medium">درجہ منتخب کریں</label>
-                  <Select value={selectedClass} onValueChange={setSelectedClass}>
+                {/* --- IS DROPDOWN KO THEEK KIYA GAYA HAI --- */}
+                <Select value={selectedClass} onValueChange={setSelectedClass}>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="درجہ منتخب کریں" />
+                        <SelectValue placeholder="درجہ منتخب کریں" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="قاعدہ">قاعدہ</SelectItem>
-                      <SelectItem value="ناظرہ">ناظرہ</SelectItem>
-                      <SelectItem value="حفظ">حفظ</SelectItem>
+                        {classes.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     </SelectContent>
-                  </Select>
+                </Select>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {students.map(student => (
+              <div key={student.id} className="bg-card p-4 rounded-lg border flex items-center justify-between">
+                <p className="font-bold">{student.name}</p>
+                <div className="flex gap-x-2">
+                  <Button size="sm" variant={attendance[student.id] === 'present' ? 'success' : 'outline'} onClick={() => handleMarkAttendance(student.id, 'present')}>حاضر</Button>
+                  <Button size="sm" variant={attendance[student.id] === 'absent' ? 'destructive' : 'outline'} onClick={() => handleMarkAttendance(student.id, 'absent')}>غیر حاضر</Button>
+                  <Button size="sm" variant={attendance[student.id] === 'leave' ? 'accent' : 'outline'} onClick={() => handleMarkAttendance(student.id, 'leave')}>رخصت</Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {selectedClass && (
-            <div className="space-y-4">
-              {students
-                .filter(student => {
-                  if (!filterParam) return true;
-                  const status = attendance.get(student.id);
-                  return status === filterParam;
-                })
-                .map((student) => (
-                  <Card key={student.id} className="shadow-card">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between flex-wrap gap-4">
-                        <div className="flex-1 min-w-[200px]">
-                          <h3 className="text-lg font-bold">{student.name}</h3>
-                          <p className="text-sm text-muted-foreground">والد: {student.father_name}</p>
-                        </div>
-                        <div className="flex gap-2 flex-wrap">
-                          <Button
-                            variant={getButtonVariant(student.id, 'present')}
-                            className="gap-2 bg-success hover:bg-success/90 text-success-foreground"
-                            onClick={() => markAttendance(student.id, 'present')}
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                            حاضر
-                          </Button>
-                          <Button
-                            variant={getButtonVariant(student.id, 'absent')}
-                            className="gap-2 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                            onClick={() => markAttendance(student.id, 'absent')}
-                          >
-                            <XCircle className="h-4 w-4" />
-                            غیر حاضر
-                          </Button>
-                          <Button
-                            variant={getButtonVariant(student.id, 'leave')}
-                            className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground"
-                            onClick={() => markAttendance(student.id, 'leave')}
-                          >
-                            <Coffee className="h-4 w-4" />
-                            رخصت
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              {students.filter(student => {
-                if (!filterParam) return true;
-                const status = attendance.get(student.id);
-                return status === filterParam;
-              }).length === 0 && (
-                <Card className="p-12 text-center">
-                  <p className="text-muted-foreground">کوئی طالب علم نہیں ملا</p>
-                </Card>
-              )}
-            </div>
-          )}
-
-          {!selectedClass && (
-            <Card className="p-12 text-center">
-              <p className="text-muted-foreground">براہ کرم درجہ منتخب کریں</p>
-            </Card>
-          )}
+            ))}
+            {selectedClass && students.length === 0 && <p className="text-center text-muted-foreground py-8">اس درجہ میں کوئی طالب علم موجود نہیں۔</p>}
+          </div>
         </div>
       </Layout>
     </ProtectedRoute>
   );
 };
 
-export default Attendance;
+export default AttendancePage;
