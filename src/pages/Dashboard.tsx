@@ -116,7 +116,8 @@ const Dashboard = () => {
             <p className="text-muted-foreground">مدرسہ کی مکمل کارکردگی کا جائزہ</p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
+            
             {statCards.map((stat, index) => {
               const Icon = stat.icon;
               return (
