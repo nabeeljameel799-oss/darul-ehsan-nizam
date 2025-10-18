@@ -111,10 +111,15 @@ const Dashboard = () => {
     <ProtectedRoute>
       <Layout>
         <div className="space-y-6">
-          <div className="text-center md:text-right">
-  <h2 className="text-2xl md:text-3xl font-bold mb-1">ڈیش بورڈ</h2>
-  <p className="text-sm text-muted-foreground">مدرسہ کی مکمل کارکردگی کا جائزہ</p>
+          <div className="space-y-3 text-center md:text-right">
+  <h2 className="text-3xl font-bold">ڈیش بورڈ</h2>
+  
+  {/* --- Aapka Naya Khubsurat Box --- */}
+  <div className="inline-block mx-auto md:mx-0 bg-primary/10 border-r-4 border-primary p-3 rounded-lg shadow-sm">
+    <p className="text-primary font-medium">مدرسہ کی مکمل کارکردگی کا جائزہ</p>
+  </div>
 </div>
+          
           
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
