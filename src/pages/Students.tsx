@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -41,7 +42,10 @@ interface Student {
 }
 
 const Students = () => {
+  const navigate = useNavigate();
   const [students, setStudents] = useState<Student[]>([]);
+  const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
+  const [selectedClass, setSelectedClass] = useState<string>("تمام طلباء");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [formData, setFormData] = useState({
@@ -54,6 +58,14 @@ const Students = () => {
   useEffect(() => {
     fetchStudents();
   }, []);
+
+  useEffect(() => {
+    if (selectedClass === "تمام طلباء") {
+      setFilteredStudents(students);
+    } else {
+      setFilteredStudents(students.filter(s => s.class_name === selectedClass));
+    }
+  }, [selectedClass, students]);
 
   const fetchStudents = async () => {
     const { data, error } = await supabase
@@ -157,21 +169,33 @@ const Students = () => {
     <ProtectedRoute>
       <Layout>
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h2 className="text-3xl font-bold mb-2">طلباء</h2>
               <p className="text-muted-foreground">تمام طلباء کی فہرست</p>
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={(open) => {
-              setIsDialogOpen(open);
-              if (!open) resetForm();
-            }}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  نیا طالب علم شامل کریں
-                </Button>
-              </DialogTrigger>
+            <div className="flex items-center gap-4">
+              <Select value={selectedClass} onValueChange={setSelectedClass}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="درجہ منتخب کریں" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="تمام طلباء">تمام طلباء</SelectItem>
+                  <SelectItem value="قاعدہ">قاعدہ</SelectItem>
+                  <SelectItem value="ناظرہ">ناظرہ</SelectItem>
+                  <SelectItem value="حفظ">حفظ</SelectItem>
+                </SelectContent>
+              </Select>
+              <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) resetForm();
+              }}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    نیا طالب علم شامل کریں
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>
@@ -234,16 +258,22 @@ const Students = () => {
                   </Button>
                 </form>
               </DialogContent>
-            </Dialog>
+              </Dialog>
+            </div>
           </div>
 
           <div className="grid gap-4">
-            {students.map((student) => (
+            {filteredStudents.map((student) => (
               <Card key={student.id} className="shadow-card hover:shadow-soft transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div className="space-y-1 flex-1">
-                      <h3 className="text-xl font-bold">{student.name}</h3>
+                      <h3 
+                        className="text-xl font-bold cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => navigate(`/student/${student.id}`)}
+                      >
+                        {student.name}
+                      </h3>
                       <p className="text-muted-foreground">والد: {student.father_name}</p>
                       <div className="flex gap-4 text-sm">
                         <span className="text-primary font-medium">درجہ: {student.class_name}</span>
@@ -270,6 +300,11 @@ const Students = () => {
                 </CardContent>
               </Card>
             ))}
+            {filteredStudents.length === 0 && students.length > 0 && (
+              <Card className="p-12 text-center">
+                <p className="text-muted-foreground">اس درجہ میں کوئی طالب علم نہیں ہے</p>
+              </Card>
+            )}
             {students.length === 0 && (
               <Card className="p-12 text-center">
                 <p className="text-muted-foreground">ابھی کوئی طالب علم شامل نہیں ہے</p>

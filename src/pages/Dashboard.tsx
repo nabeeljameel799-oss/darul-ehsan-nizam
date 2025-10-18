@@ -4,8 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, CheckCircle, XCircle, Coffee, DollarSign } from "lucide-react";
 import Layout from "@/components/Layout";
 import { ProtectedRoute } from "@/lib/auth";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalStudents: 0,
     presentToday: 0,
@@ -66,6 +68,7 @@ const Dashboard = () => {
       icon: Users,
       color: "text-primary",
       bgColor: "bg-primary/10",
+      clickable: false,
     },
     {
       title: "آج حاضر",
@@ -73,6 +76,7 @@ const Dashboard = () => {
       icon: CheckCircle,
       color: "text-success",
       bgColor: "bg-success/10",
+      clickable: false,
     },
     {
       title: "آج غیر حاضر",
@@ -80,6 +84,8 @@ const Dashboard = () => {
       icon: XCircle,
       color: "text-destructive",
       bgColor: "bg-destructive/10",
+      clickable: true,
+      onClick: () => navigate('/attendance?filter=absent'),
     },
     {
       title: "آج رخصت پر",
@@ -87,6 +93,8 @@ const Dashboard = () => {
       icon: Coffee,
       color: "text-accent",
       bgColor: "bg-accent/10",
+      clickable: true,
+      onClick: () => navigate('/attendance?filter=leave'),
     },
     {
       title: "فیس واجب الادا",
@@ -94,6 +102,8 @@ const Dashboard = () => {
       icon: DollarSign,
       color: "text-destructive",
       bgColor: "bg-destructive/10",
+      clickable: true,
+      onClick: () => navigate('/fees?filter=pending'),
     },
   ];
 
@@ -110,7 +120,11 @@ const Dashboard = () => {
             {statCards.map((stat, index) => {
               const Icon = stat.icon;
               return (
-                <Card key={index} className="shadow-card hover:shadow-soft transition-shadow">
+                <Card 
+                  key={index} 
+                  className={`shadow-card hover:shadow-soft transition-shadow ${stat.clickable ? 'cursor-pointer hover:scale-105 transition-transform' : ''}`}
+                  onClick={stat.clickable ? stat.onClick : undefined}
+                >
                   <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                     <CardTitle className="text-sm font-medium">
                       {stat.title}

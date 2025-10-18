@@ -6,6 +6,7 @@ import { CheckCircle, DollarSign } from "lucide-react";
 import Layout from "@/components/Layout";
 import { ProtectedRoute } from "@/lib/auth";
 import { toast } from "sonner";
+import { useSearchParams } from "react-router-dom";
 
 interface Student {
   id: string;
@@ -20,6 +21,9 @@ interface FeeRecord {
 }
 
 const Fees = () => {
+  const [searchParams] = useSearchParams();
+  const filterParam = searchParams.get('filter');
+  
   const [students, setStudents] = useState<Student[]>([]);
   const [paidFees, setPaidFees] = useState<Map<string, string>>(new Map());
   const [currentMonth] = useState(new Date().toISOString().slice(0, 7));
@@ -103,9 +107,16 @@ const Fees = () => {
           </div>
 
           <div className="space-y-4">
-            {students.map((student) => {
-              const isPaid = paidFees.has(student.id);
-              const paidDate = paidFees.get(student.id);
+            {students
+              .filter(student => {
+                if (filterParam === 'pending') {
+                  return !paidFees.has(student.id);
+                }
+                return true;
+              })
+              .map((student) => {
+                const isPaid = paidFees.has(student.id);
+                const paidDate = paidFees.get(student.id);
 
               return (
                 <Card key={student.id} className="shadow-card">
@@ -145,6 +156,16 @@ const Fees = () => {
                 </Card>
               );
             })}
+            {students.filter(student => {
+              if (filterParam === 'pending') {
+                return !paidFees.has(student.id);
+              }
+              return true;
+            }).length === 0 && students.length > 0 && (
+              <Card className="p-12 text-center">
+                <p className="text-muted-foreground">کوئی طالب علم نہیں ملا</p>
+              </Card>
+            )}
             {students.length === 0 && (
               <Card className="p-12 text-center">
                 <p className="text-muted-foreground">ابھی کوئی طالب علم شامل نہیں ہے</p>
